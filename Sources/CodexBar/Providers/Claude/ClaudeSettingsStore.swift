@@ -142,6 +142,8 @@ extension SettingsStore {
             ""
         case .adminAPIKey:
             ""
+        case .configDirectory:
+            ""
         case let .webCookie(header):
             header
         }
@@ -159,7 +161,7 @@ extension SettingsStore {
             .api
         case .webCookie:
             .web
-        case .none:
+        case .none, .configDirectory:
             .auto
         }
     }
@@ -178,6 +180,10 @@ extension SettingsStore {
             return .off
         }
         if routing.adminAPIKey != nil {
+            return .off
+        }
+        // Profile accounts must not import browser cookies that may belong to another Claude account.
+        if routing.configDirectory != nil {
             return .off
         }
         if self.tokenAccounts(for: .claude).isEmpty { return fallback }
@@ -206,7 +212,18 @@ extension UsageStore {
             accountCount: self.claudeSwapAccountSnapshots.count,
             showSingleAccount: self.settings.claudeSwapShowSingleAccount)
         else { return nil }
-        return self.settings.effectiveSelectedTokenAccount(for: .claude)?.claudeConfigDirectory
-            .flatMap { $0.isEmpty ? nil : $0 }
+        guard let account = self.settings.effectiveSelectedTokenAccount(for: .claude) else { return nil }
+        if let directory = account.claudeConfigDirectory, !directory.isEmpty {
+            return directory
+        }
+        // A custom profile account owns its profile's history; the default profile keeps the combined view.
+        let environment = ProcessInfo.processInfo.environment
+        guard let rawDirectory = ClaudeCredentialRouting.resolve(
+            tokenAccountToken: account.token,
+            manualCookieHeader: nil).configDirectory,
+            let directory = ClaudeConfigPaths.expandedProfileDirectory(rawDirectory, environment: environment),
+            !ClaudeConfigPaths.isDefaultConfigRoot(directory, environment: environment)
+        else { return nil }
+        return directory
     }
 }

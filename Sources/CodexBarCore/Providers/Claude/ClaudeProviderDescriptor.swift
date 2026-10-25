@@ -62,12 +62,13 @@ public enum ClaudeProviderDescriptor {
                     [ClaudeOAuthCredentialsStore.environmentTokenKey: accessToken]
                 case let .adminAPIKey(apiKey):
                     [ClaudeAdminAPISettingsReader.adminAPIKeyEnvironmentKey: apiKey]
-                case .none, .webCookie:
+                case .none, .webCookie, .configDirectory:
                     nil
                 }
             },
             environmentScrubber: { environment, _ in
                 environment.removeValue(forKey: ClaudeOAuthCredentialsStore.environmentTokenKey)
+                environment.removeValue(forKey: ClaudeCredentialRouting.profileAccountEnvironmentKey)
                 for key in ClaudeAdminAPISettingsReader.apiKeyEnvironmentKeys {
                     environment.removeValue(forKey: key)
                 }
@@ -75,15 +76,46 @@ public enum ClaudeProviderDescriptor {
         authDetector: { environment, _ in
             ClaudeAdminAPISettingsReader.apiKey(environment: environment) == nil ? [] : ["api"]
         },
+        accountEnvironmentOverride: { environment, account in
+            Self.applyProfileAccountEnvironment(&environment, account: account)
+        },
         selectedAccountSourceModeResolver: { base, account, _ in
             guard let account else { return base }
             return switch ClaudeCredentialRouting.resolve(tokenAccountToken: account.token, manualCookieHeader: nil) {
             case .adminAPIKey: .api
             case .oauth: .oauth
             case .webCookie: .web
-            case .none: base
+            case .none, .configDirectory: base
             }
         })
+
+    /// Scopes a `claude-profile:` account to its Claude Code profile. The default `~/.claude` root keeps
+    /// Claude's unset `CLAUDE_CONFIG_DIR`, so it shares the ambient credentials and history. An invalid
+    /// directory leaves no marker, which keeps the selected-account authority boundary closed.
+    static func applyProfileAccountEnvironment(
+        _ environment: inout [String: String],
+        account: ProviderTokenAccount)
+    {
+        guard let rawDirectory = ClaudeCredentialRouting.resolve(
+            tokenAccountToken: account.token,
+            manualCookieHeader: nil).configDirectory
+        else { return }
+        environment.removeValue(forKey: ClaudeConfigPaths.secureStorageDirectoryEnvironmentKey)
+        guard let directory = ClaudeConfigPaths.expandedProfileDirectory(rawDirectory, environment: environment)
+        else {
+            environment.removeValue(forKey: ClaudeConfigPaths.configDirectoryEnvironmentKey)
+            return
+        }
+        if ClaudeConfigPaths.isDefaultConfigRoot(directory, environment: environment) {
+            environment.removeValue(forKey: ClaudeConfigPaths.configDirectoryEnvironmentKey)
+            environment[ClaudeCredentialRouting.profileAccountEnvironmentKey] =
+                ClaudeCredentialRouting.defaultProfileAccountMarker
+        } else {
+            environment[ClaudeConfigPaths.configDirectoryEnvironmentKey] = directory
+            environment[ClaudeCredentialRouting.profileAccountEnvironmentKey] =
+                ClaudeCredentialRouting.customProfileAccountMarker
+        }
+    }
 
     static func makeDescriptor() -> ProviderDescriptor {
         ProviderDescriptor(
@@ -100,7 +132,7 @@ public enum ClaudeProviderDescriptor {
                     case .adminAPIKey: .api
                     case .oauth: .oauth
                     case .webCookie: .web
-                    case .none: .auto
+                    case .none, .configDirectory: .auto
                     }
                 } else if routing.adminAPIKey != nil {
                     .api
@@ -109,7 +141,9 @@ public enum ClaudeProviderDescriptor {
                 } else {
                     .auto
                 }
+                // Profile accounts must not import browser cookies that may belong to another Claude account.
                 let cookieSource: ProviderCookieSource = routing.isOAuth || routing.adminAPIKey != nil
+                    || routing.configDirectory != nil
                     ? .off
                     : context.cookieSettings(for: .claude).cookieSource
                 return ClaudeProviderSettings(
@@ -287,7 +321,20 @@ public enum ClaudeProviderDescriptor {
     private static func resolveStrategies(context: ProviderFetchContext) async -> [any ProviderFetchStrategy] {
         // An explicitly selected account is the credential authority for this fetch. The global
         // source only controls ambient-account routing and must not redirect a selected account.
-        if context.selectedTokenAccountID != nil {
+        // A default-profile account is the ambient account, so it keeps ambient routing.
+        let profileAccountMarker = context.env[ClaudeCredentialRouting.profileAccountEnvironmentKey]
+        if context.selectedTokenAccountID != nil,
+           profileAccountMarker != ClaudeCredentialRouting.defaultProfileAccountMarker
+        {
+            if profileAccountMarker == ClaudeCredentialRouting.customProfileAccountMarker {
+                // Claude Code owns the custom profile's Keychain item; only its own CLI reads it.
+                return [ClaudeCLIFetchStrategy(
+                    useWebExtras: false,
+                    includePrepaidBalance: false,
+                    manualCookieHeader: nil,
+                    browserDetection: context.browserDetection,
+                    hasWebFallback: false)]
+            }
             if ClaudeAdminAPIFetchStrategy.isSelectedAdminAPIAccount(context: context) {
                 return [ClaudeAdminAPIFetchStrategy()]
             }

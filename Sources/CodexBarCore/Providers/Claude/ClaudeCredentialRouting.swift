@@ -5,6 +5,16 @@ public enum ClaudeCredentialRouting: Sendable, Equatable {
     case oauth(accessToken: String)
     case webCookie(header: String)
     case adminAPIKey(String)
+    /// A Claude Code profile directory (`claude-profile:~/.claude-work`). Usage comes from that profile's own
+    /// `claude` login; CodexBar never reads its credentials.
+    case configDirectory(String)
+
+    public static let configDirectoryTokenPrefix = "claude-profile:"
+    /// Set by the selected profile account's environment so strategy resolution can tell the default profile
+    /// (ambient routing) from a custom one (CLI only) without seeing the token.
+    public static let profileAccountEnvironmentKey = "CODEXBAR_CLAUDE_PROFILE_ACCOUNT"
+    public static let defaultProfileAccountMarker = "default"
+    public static let customProfileAccountMarker = "custom"
 
     public static func resolve(tokenAccountToken: String?, manualCookieHeader: String?) -> Self {
         if let tokenAccountToken,
@@ -39,7 +49,16 @@ public enum ClaudeCredentialRouting: Sendable, Equatable {
         return key
     }
 
+    public var configDirectory: String? {
+        guard case let .configDirectory(directory) = self else { return nil }
+        return directory
+    }
+
     private static func resolvePrimaryCredential(_ raw: String) -> Self? {
+        if raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased().hasPrefix(self.configDirectoryTokenPrefix) {
+            // A profile token never falls through to cookie routing, even when its directory is missing.
+            return self.normalizedConfigDirectory(raw).map { .configDirectory($0) }
+        }
         if let adminKey = self.normalizedAdminAPIKey(raw) {
             return .adminAPIKey(adminKey)
         }
@@ -81,6 +100,15 @@ public enum ClaudeCredentialRouting: Sendable, Equatable {
             return bearerTrimmed.lowercased().hasPrefix("sk-ant-admin") ? bearerTrimmed : nil
         }
         return lower.hasPrefix("sk-ant-admin") ? trimmed : nil
+    }
+
+    private static func normalizedConfigDirectory(_ raw: String?) -> String? {
+        guard let trimmed = self.cleaned(raw),
+              trimmed.lowercased().hasPrefix(self.configDirectoryTokenPrefix)
+        else { return nil }
+        let directory = trimmed.dropFirst(self.configDirectoryTokenPrefix.count)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return directory.isEmpty ? nil : directory
     }
 
     private static func normalizedWebCookie(_ raw: String?) -> String? {

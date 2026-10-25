@@ -100,6 +100,31 @@ public enum ClaudeConfigPaths {
         return root.appendingPathComponent(".credentials.json")
     }
 
+    /// Expands a user-entered profile directory (`~`, `~/…`, or absolute) into the absolute literal Claude expects
+    /// in `CLAUDE_CONFIG_DIR`. Relative paths are rejected because Claude would resolve them against the probe CWD.
+    public static func expandedProfileDirectory(_ raw: String, environment: [String: String]) -> String? {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        let home = self.homeDirectory(environment: environment)
+        let url: URL
+        if trimmed == "~" {
+            url = home
+        } else if trimmed.hasPrefix("~/") {
+            url = home.appendingPathComponent(String(trimmed.dropFirst(2)), isDirectory: true)
+        } else if trimmed.hasPrefix("/") {
+            url = URL(fileURLWithPath: trimmed, isDirectory: true)
+        } else {
+            return nil
+        }
+        return url.standardizedFileURL.path
+    }
+
+    /// Whether an absolute profile directory is the default `~/.claude` root that Claude uses without
+    /// `CLAUDE_CONFIG_DIR`.
+    public static func isDefaultConfigRoot(_ path: String, environment: [String: String]) -> Bool {
+        URL(fileURLWithPath: path, isDirectory: true).standardizedFileURL.path
+            == self.defaultConfigRoot(environment: environment, workingDirectory: nil).standardizedFileURL.path
+    }
+
     public static func homeDirectory(
         environment: [String: String],
         workingDirectory: URL? = nil) -> URL
