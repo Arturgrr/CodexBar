@@ -251,6 +251,7 @@
 "Menu bar shows percent" = "メニューバーにパーセントを表示";
 "Menu content" = "メニューの内容";
 "Merge Icons" = "アイコンを統合";
+"One icon per account" = "アカウントごとにアイコン";
 "Never prompt" = "プロンプトを表示しない";
 "No" = "いいえ";
 "No Codex accounts detected yet." = "Codex アカウントはまだ検出されていません。";

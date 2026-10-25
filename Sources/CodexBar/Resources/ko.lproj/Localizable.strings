@@ -252,6 +252,7 @@
 "Menu bar shows percent" = "메뉴 막대에 백분율 표시";
 "Menu content" = "메뉴 내용";
 "Merge Icons" = "아이콘 병합";
+"One icon per account" = "계정별 아이콘";
 "Never prompt" = "표시 안 함";
 "No" = "아니요";
 "No Codex accounts detected yet." = "아직 감지된 Codex 계정이 없습니다.";

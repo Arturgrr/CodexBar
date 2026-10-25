@@ -1,6 +1,7 @@
 import AppKit
 
 extension StatusItemController {
+    // swiftlint:disable:next cyclomatic_complexity
     func selector(for action: MenuDescriptor.MenuAction) -> (Selector, Any?) {
         switch action {
         case .installUpdate: (#selector(self.installUpdate), nil)
@@ -26,6 +27,8 @@ extension StatusItemController {
         case let .copyError(message): (#selector(self.copyError(_:)), message)
         case let .focusAgentSession(session, remoteHost):
             (#selector(self.focusAgentSession(_:)), [session.id, remoteHost ?? ""])
+        case let .subscriptionToggle(toggle):
+            self.subscriptionToggleSelector(for: toggle)
         }
     }
 

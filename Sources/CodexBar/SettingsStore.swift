@@ -723,7 +723,10 @@ extension SettingsStore {
             iCloudSyncIncludeSecrets: userDefaults.object(forKey: "iCloudSyncIncludeSecrets") as? Bool ?? true,
             iCloudSyncSnapshotsEnabled: userDefaults.object(forKey: "iCloudSyncSnapshotsEnabled") as? Bool ?? true,
             iCloudSyncShowFleetAccounts: userDefaults.object(forKey: "iCloudSyncShowFleetAccounts") as? Bool ?? true,
-            iCloudSyncDeviceID: iCloudSyncDeviceID)
+            iCloudSyncDeviceID: iCloudSyncDeviceID,
+            accountStatusItemsEnabled: userDefaults.bool(forKey: "accountStatusItemsEnabled"),
+            disabledAccountStatusItemKeys: userDefaults.stringArray(forKey: "disabledAccountStatusItemKeys") ?? [],
+            menuSubscriptionProviderIDs: userDefaults.stringArray(forKey: "menuSubscriptionProviderIDs") ?? [])
     }
 
     private static func hadPreviousAppLaunch(userDefaults: UserDefaults) -> Bool {

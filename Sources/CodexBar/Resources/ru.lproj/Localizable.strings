@@ -253,6 +253,7 @@
 "Menu bar shows percent" = "Строка меню показывает проценты";
 "Menu content" = "Содержание меню";
 "Merge Icons" = "Объединить значки";
+"One icon per account" = "Значок для каждого аккаунта";
 "Never prompt" = "Никогда не запрашивать";
 "No" = "Нет";
 "No Codex accounts detected yet." = "Аккаунты Codex пока не обнаружены.";

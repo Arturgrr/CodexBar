@@ -235,6 +235,7 @@
 "Menu bar shows percent" = "Menü çubuğu yüzde gösterir";
 "Menu content" = "Menü içeriği";
 "Merge Icons" = "Simgeleri birleştir";
+"One icon per account" = "Hesap başına bir simge";
 "Never prompt" = "Hiçbir zaman istem gösterme";
 "No" = "Hayır";
 "No Codex accounts detected yet." = "Henüz Codex hesabı algılanmadı.";

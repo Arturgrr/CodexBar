@@ -8,12 +8,20 @@ struct MenuDescriptor {
         let action: MenuAction?
         let isEnabled: Bool
         let isChecked: Bool
+        let indentationLevel: Int
 
-        init(title: String, action: MenuAction?, isEnabled: Bool = true, isChecked: Bool = false) {
+        init(
+            title: String,
+            action: MenuAction?,
+            isEnabled: Bool = true,
+            isChecked: Bool = false,
+            indentationLevel: Int = 0)
+        {
             self.title = title
             self.action = action
             self.isEnabled = isEnabled
             self.isChecked = isChecked
+            self.indentationLevel = indentationLevel
         }
     }
 
@@ -54,6 +62,7 @@ struct MenuDescriptor {
         case about = "info.circle"
         case quit = "xmark.rectangle"
         case copyError = "doc.on.doc"
+        case subscriptions = "switch.2"
     }
 
     enum TextStyle {
@@ -84,6 +93,7 @@ struct MenuDescriptor {
         case quit
         case copyError(String)
         case focusAgentSession(AgentSession, remoteHost: String?)
+        case subscriptionToggle(SubscriptionToggle)
     }
 
     var sections: [Section]
@@ -170,6 +180,9 @@ struct MenuDescriptor {
                 labelStyle: agentSessionLabelStyle,
                 hideUnreachableHosts: agentSessionsHideUnreachableHosts,
                 now: now))
+        }
+        if let subscriptions = Self.subscriptionsSection(store: store, settings: settings) {
+            sections.append(subscriptions)
         }
         sections.append(Self.metaSection(
             updateReady: updateReady,
@@ -814,6 +827,8 @@ extension MenuDescriptor.MenuAction {
         case .openOpenAILiveUsage: MenuDescriptor.MenuActionSystemImage.liveUsage.rawValue
         case .copyError: MenuDescriptor.MenuActionSystemImage.copyError.rawValue
         case .focusAgentSession:
+            nil
+        case .subscriptionToggle:
             nil
         }
     }

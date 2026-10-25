@@ -50,7 +50,7 @@ extension UsageStore {
         }
     }
 
-    private func mergedOverviewAccountRows(for provider: UsageProvider) -> [MergedOverviewRow] {
+    func mergedOverviewAccountRows(for provider: UsageProvider) -> [MergedOverviewRow] {
         if ClaudeSwapMenuPrecedence.prefersClaudeSwap(
             provider: provider,
             accountCount: self.claudeSwapAccountSnapshots.count,

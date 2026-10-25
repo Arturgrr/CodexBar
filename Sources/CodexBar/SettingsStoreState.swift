@@ -113,4 +113,7 @@ struct SettingsDefaultsState {
     var iCloudSyncSnapshotsEnabled: Bool
     var iCloudSyncShowFleetAccounts: Bool
     var iCloudSyncDeviceID: String
+    var accountStatusItemsEnabled: Bool
+    var disabledAccountStatusItemKeys: [String]
+    var menuSubscriptionProviderIDs: [String]
 }

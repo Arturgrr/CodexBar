@@ -45,6 +45,8 @@ extension UsageStore {
 
     var iconObservationToken: Int {
         _ = self.snapshots
+        _ = self.accountSnapshots
+        _ = self.codexAccountSnapshots
         _ = self.claudeSwapAccountSnapshots
         _ = self.claudeSwapRevision
         _ = self.errors

@@ -39,6 +39,7 @@ struct NativeHighlightDeferredMenuRebuild {
 }
 
 @MainActor
+// swiftlint:disable:next type_body_length
 final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControlling {
     // Disable SwiftUI menu cards + menu refresh work in tests to avoid swiftpm-testing-helper crashes.
     static var menuCardRenderingEnabled = !SettingsStore.isRunningTests
@@ -53,6 +54,8 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
     enum StatusItemIdentity {
         case merged
         case provider(ProviderInstanceID)
+        /// One account of a multi-account provider; `accountToken` is an opaque, stable hash of its account ID.
+        case account(ProviderInstanceID, accountToken: String)
 
         var autosaveName: String {
             switch self {
@@ -60,6 +63,8 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
                 "codexbar-merged"
             case let .provider(provider):
                 "codexbar-\(provider.rawValue)"
+            case let .account(provider, accountToken):
+                "codexbar-\(provider.rawValue)-account-\(accountToken)"
             }
         }
 
@@ -69,6 +74,8 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
                 StatusItemController.statusItemAccessibilityIdentifierPrefix
             case let .provider(provider):
                 "\(StatusItemController.statusItemAccessibilityIdentifierPrefix).\(provider.rawValue)"
+            case let .account(provider, accountToken):
+                "\(StatusItemController.statusItemAccessibilityIdentifierPrefix).\(provider.rawValue).\(accountToken)"
             }
         }
     }
@@ -142,6 +149,7 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
     let menuRefreshEnabledForController: Bool
     var statusItem: NSStatusItem
     var statusItems: [ProviderInstanceID: NSStatusItem] = [:]
+    var accountStatusItems = AccountStatusItemRegistry()
     /// App intent survives Tahoe changing `NSStatusItem.isVisible` after Control Center rejects its scene.
     var expectedVisibleStatusItemAutosaveNames: Set<String> = []
     var lastMenuProvider: ProviderInstanceID?
@@ -737,7 +745,11 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
             }
             self.attachMenus()
         } else {
+            if self.accountStatusItemLayoutNeedsUpdate() {
+                self.updateVisibility()
+            }
             UsageProvider.allCases.forEach { self.applyIcon(for: $0, phase: phase) }
+            self.applyAccountStatusItemIcons()
             self.attachMenus(fallback: self.fallbackProvider)
         }
         self.updateAnimationState()
@@ -763,6 +775,7 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
         for provider in Array(self.statusItems.keys) {
             self.removeProviderStatusItem(for: provider)
         }
+        self.removeAllAccountStatusItems()
         self.lastAppliedMergedIconRenderSignature = nil
         self.lastAppliedProviderIconRenderSignatures.removeAll()
         self.updateVisibility()
@@ -786,13 +799,17 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
             for provider in Array(self.statusItems.keys) {
                 self.removeProviderStatusItem(for: provider)
             }
+            self.removeAllAccountStatusItems()
             self.attachMenus()
         } else {
             self.setStatusItemVisiblePreservingPlacement(self.statusItem, false)
             let fallback = self.fallbackProvider
+            let accountItemProviders = self.accountStatusItemProviders()
             for provider in self.settings.orderedFirstPartyProviders() {
                 let isEnabled = self.isEnabled(provider)
-                let shouldBeVisible = isEnabled || fallback == provider || force
+                // Account items replace the provider item; they never duplicate it.
+                let shouldBeVisible = (isEnabled || fallback == provider || force)
+                    && !accountItemProviders.contains(provider)
                 if shouldBeVisible {
                     let item = self.lazyStatusItem(for: provider)
                     self.setStatusItemVisiblePreservingPlacement(item, true)
@@ -801,6 +818,7 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
                     self.removeProviderStatusItem(for: provider)
                 }
             }
+            expectedVisibleAutosaveNames.formUnion(self.reconcileAccountStatusItems(providers: accountItemProviders))
             self.attachMenus(fallback: fallback)
         }
         self.expectedVisibleStatusItemAutosaveNames = expectedVisibleAutosaveNames
@@ -832,9 +850,11 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
     }
 
     private func attachMenus(fallback: UsageProvider? = nil) {
+        let accountItemProviders = self.accountStatusItemProviders()
         for provider in UsageProvider.allCases {
             // Only access/create the status item if it's actually needed
-            let shouldHaveItem = self.isEnabled(provider) || fallback == provider
+            let shouldHaveItem = (self.isEnabled(provider) || fallback == provider)
+                && !accountItemProviders.contains(provider)
 
             if shouldHaveItem {
                 let item = self.lazyStatusItem(for: provider)
@@ -1031,7 +1051,8 @@ extension StatusItemController {
         #if DEBUG
         guard !self.isReleasedForTesting else { return }
         #endif
-        let visibleItems = ([self.statusItem] + Array(self.statusItems.values)).filter(\.isVisible)
+        let visibleItems = ([self.statusItem] + Array(self.statusItems.values) + self.accountStatusItems.allItems)
+            .filter(\.isVisible)
         for item in visibleItems {
             self.setStatusItemVisiblePreservingPlacement(item, false)
         }

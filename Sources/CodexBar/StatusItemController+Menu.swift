@@ -241,7 +241,9 @@ extension StatusItemController {
         }
         // Provider-specific by design: Codex remains the empty merged-menu selection fallback.
         let currentProvider = selectedProvider ?? enabledProviders.first ?? .codex
+        // An account item's menu is already scoped to one account.
         let suppressAccountSwitchers = isOverviewSelected || isPluginSelected
+            || self.accountStatusItemFocus(for: menu) != nil
         let rawCodexAccountDisplay = suppressAccountSwitchers ? nil : self.codexAccountMenuDisplay(for: currentProvider)
         let codexAccountDisplay = suppressAccountSwitchers
             ? nil
@@ -684,6 +686,9 @@ extension StatusItemController {
     }
 
     private func addMenuCards(to menu: NSMenu, context: MenuCardContext, captureMenu: NSMenu? = nil) -> Bool {
+        if self.addAccountStatusItemCard(to: menu, focusMenu: captureMenu ?? menu, context: context) {
+            return false
+        }
         let fleetProjection = self.fleetAccountProjection(for: context.currentProvider)
         if self.addFleetFallback(fleetProjection, to: menu, context: context) {
             return false
@@ -946,6 +951,7 @@ extension StatusItemController {
                         let child = NSMenuItem(title: submenuItem.title, action: nil, keyEquivalent: "")
                         child.state = submenuItem.isChecked ? .on : .off
                         child.isEnabled = submenuItem.isEnabled
+                        child.indentationLevel = submenuItem.indentationLevel
                         if let action = submenuItem.action {
                             let (selector, represented) = self.selector(for: action)
                             child.action = selector

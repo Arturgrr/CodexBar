@@ -684,7 +684,7 @@ extension StatusItemController {
         return true
     }
 
-    private func setButtonContent(image: NSImage, title: String?, tint: NSColor?, for button: NSStatusBarButton) {
+    func setButtonContent(image: NSImage, title: String?, tint: NSColor?, for button: NSStatusBarButton) {
         let image = tint.map { MenuBarLayoutRenderer.attachmentImage(image, tint: $0, isMonochrome: false) } ?? image
         let isDebugApp = Self.isDebugApp(bundleIdentifier: Bundle.main.bundleIdentifier)
         let value = Self.buttonTitle(

@@ -251,6 +251,7 @@
 "Menu bar shows percent" = "Рядок меню показує відсотки";
 "Menu content" = "Вміст меню";
 "Merge Icons" = "Об’єднати піктограми";
+"One icon per account" = "Значок для кожного облікового запису";
 "Never prompt" = "Ніколи не запитувати";
 "No" = "Ні";
 "No Codex accounts detected yet." = "Облікових записів Codex ще не виявлено.";

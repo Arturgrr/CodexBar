@@ -41,6 +41,7 @@ extension StatusItemController {
             "brandPercent=\(showBrandPercent ? "1" : "0")",
             "hideCritters=\(self.settings.menuBarHidesCritters ? "1" : "0")",
             "needsAnimation=\(self.needsMenuBarIconAnimation() ? "1" : "0")",
+            "accounts=\(mergeIcons ? "" : self.accountStatusItemObservationSignature())",
             providerSignatures,
         ].joined(separator: "|")
     }

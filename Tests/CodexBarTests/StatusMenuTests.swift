@@ -1561,7 +1561,8 @@ extension StatusMenuTests {
         let ids = self.representedIDs(in: menu)
         let overviewRows = ids.filter { $0.hasPrefix("overviewRow-") }
         #expect(Set(overviewRows) == Set(enabledProviders.map { "overviewRow-\($0.rawValue)" }))
-        #expect(menu.items.count(where: \.isSeparatorItem) == overviewRows.count + 1)
+        // One more separator for the Subscriptions section.
+        #expect(menu.items.count(where: \.isSeparatorItem) == overviewRows.count + 2)
     }
 
     @Test

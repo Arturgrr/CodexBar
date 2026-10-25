@@ -256,6 +256,7 @@
 "Menu bar shows percent" = "選單列顯示百分比";
 "Menu content" = "選單內容";
 "Merge Icons" = "合併圖示";
+"One icon per account" = "每個帳號一個圖示";
 "Never prompt" = "永不提示";
 "No" = "否";
 "No Codex accounts detected yet." = "未偵測到 Codex 帳號。";
