@@ -177,6 +177,7 @@ extension StatusItemController {
         if self.settings.menuBarShowsBrandIconWithPercent, let brand = self.brandIcon(provider) {
             let title = [entry.badge, self.menuBarDisplayText(for: provider, snapshot: entry.snapshot)]
                 .compactMap(\.self)
+                .filter { !$0.isEmpty }
                 .joined(separator: " ")
             let signature = [
                 "mode=brandPercent",

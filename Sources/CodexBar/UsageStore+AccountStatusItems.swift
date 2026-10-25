@@ -7,8 +7,9 @@ struct AccountStatusItemEntry {
     /// Same identifier format as `MergedOverviewRow.accountID`, so menus can reuse the Overview card models.
     let accountID: String
     let label: String
-    /// Short label drawn next to the provider icon so identical provider icons stay distinguishable.
-    let badge: String
+    /// One-character label drawn next to the provider icon so identical provider icons stay distinguishable;
+    /// empty when the account is the provider's only visible item.
+    var badge: String
     /// Usage that may drive the menu bar icon; last-known source usage is excluded because the icon shows no age.
     let snapshot: UsageSnapshot?
     let error: String?
@@ -18,12 +19,10 @@ struct AccountStatusItemEntry {
     }
 
     static func badge(for label: String, ordinal: Int, hidePersonalInfo: Bool) -> String {
-        guard !hidePersonalInfo else { return "\(ordinal)" }
-        var text = label.trimmingCharacters(in: .whitespacesAndNewlines)
-        if let at = text.firstIndex(of: "@") {
-            text = String(text[..<at])
-        }
-        return text.isEmpty ? "\(ordinal)" : String(text.prefix(8))
+        guard !hidePersonalInfo,
+              let initial = label.trimmingCharacters(in: .whitespacesAndNewlines).first
+        else { return "\(ordinal)" }
+        return String(initial).uppercased()
     }
 }
 
@@ -95,9 +94,14 @@ extension UsageStore {
     /// The accounts that get their own menu bar item: the candidates the user has not turned off.
     func accountStatusItemEntries(for provider: UsageProvider) -> [AccountStatusItemEntry] {
         guard self.settings.accountStatusItemsEnabled else { return [] }
-        return self.accountStatusItemCandidates(for: provider).filter {
+        var entries = self.accountStatusItemCandidates(for: provider).filter {
             self.settings.isAccountStatusItemEnabled(provider: provider, accountID: $0.accountID)
         }
+        // A lone item has no sibling to tell apart from.
+        if entries.count == 1 {
+            entries[0].badge = ""
+        }
+        return entries
     }
 
     /// The card shown by an account item's menu; the same model the Overview renders for that account row.

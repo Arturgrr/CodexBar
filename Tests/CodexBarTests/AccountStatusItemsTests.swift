@@ -66,7 +66,7 @@ struct AccountStatusItemsTests {
             let entries = store.accountStatusItemEntries(for: .claude)
             #expect(entries.map(\.accountID) == accounts.map(\.id.uuidString))
             #expect(entries.map { $0.snapshot?.primary?.usedPercent } == [20, 70])
-            #expect(entries.map(\.badge) == ["personal", "work"])
+            #expect(entries.map(\.badge) == ["P", "W"])
 
             let workCard = store.accountStatusItemCardModel(for: .claude, accountID: accounts[1].id.uuidString)
             #expect(workCard?.metrics.first?.percent == 70)
@@ -80,7 +80,10 @@ struct AccountStatusItemsTests {
             store.settings.accountStatusItemsEnabled = true
             store.settings.setAccountStatusItemEnabled(false, provider: .claude, accountID: accounts[0].id.uuidString)
 
-            #expect(store.accountStatusItemEntries(for: .claude).map(\.accountID) == [accounts[1].id.uuidString])
+            let entries = store.accountStatusItemEntries(for: .claude)
+            #expect(entries.map(\.accountID) == [accounts[1].id.uuidString])
+            // A lone item has nothing to be told apart from, so it drops its badge.
+            #expect(entries.map(\.badge) == [""])
             #expect(store.accountStatusItemCandidates(for: .claude).count == 2)
         }
     }
@@ -149,11 +152,10 @@ struct AccountStatusItemsTests {
     }
 
     @Test
-    func `account badges stay short and drop email domains`() {
-        #expect(AccountStatusItemEntry.badge(for: "work@example.com", ordinal: 2, hidePersonalInfo: false) == "work")
+    func `account badges use the label's uppercased initial`() {
+        #expect(AccountStatusItemEntry.badge(for: "work@example.com", ordinal: 2, hidePersonalInfo: false) == "W")
+        #expect(AccountStatusItemEntry.badge(for: " pessoal", ordinal: 1, hidePersonalInfo: false) == "P")
         #expect(AccountStatusItemEntry.badge(for: "  ", ordinal: 3, hidePersonalInfo: false) == "3")
-        #expect(AccountStatusItemEntry.badge(for: "a-very-long-label", ordinal: 1, hidePersonalInfo: false)
-            == "a-very-l")
         #expect(AccountStatusItemEntry.badge(for: "work", ordinal: 2, hidePersonalInfo: true) == "2")
     }
 }
