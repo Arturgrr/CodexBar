@@ -164,7 +164,7 @@ extension StatusItemController {
     }
 
     /// A reduced `applyIcon(for:phase:)`: the account's own usage with a short account badge, without
-    /// loading animations or custom layouts, which are provider-scoped.
+    /// loading animations, which are provider-scoped.
     private func applyAccountStatusItemIcon(_ entry: AccountStatusItemEntry, statusItem: NSStatusItem) {
         guard let button = statusItem.button else { return }
         let provider = entry.provider
@@ -173,6 +173,14 @@ extension StatusItemController {
         let warningFlash = self.quotaWarningFlashActive(provider: provider)
         button.toolTip = "\(self.store.metadata(for: provider).displayName) · \(entry.label)"
         statusItem.length = NSStatusItem.variableLength
+
+        if self.settings.menuBarShowsBrandIconWithPercent,
+           self.applyAccountStatusItemLayout(entry, statusItem: statusItem, button: button, warningFlash: warningFlash)
+        {
+            // Layouts render outside the signature cache; drop it so a later legacy render is not skipped.
+            self.accountStatusItems.renderSignatures[entry.key] = nil
+            return
+        }
 
         if self.settings.menuBarShowsBrandIconWithPercent, let brand = self.brandIcon(provider) {
             let title = [entry.badge, self.menuBarDisplayText(for: provider, snapshot: entry.snapshot)]
@@ -232,5 +240,44 @@ extension StatusItemController {
             title: entry.badge,
             tint: tint,
             for: button)
+    }
+
+    /// Renders the provider's menu bar layout (the same windows the provider item shows, e.g. session) with
+    /// the account's own usage. Returns false when the layout does not apply and the legacy styles render.
+    private func applyAccountStatusItemLayout(
+        _ entry: AccountStatusItemEntry,
+        statusItem: NSStatusItem,
+        button: NSStatusBarButton,
+        warningFlash: Bool) -> Bool
+    {
+        let provider = entry.provider
+        let resolution = self.renderedMenuBarLayoutResolution(for: provider)
+        guard !resolution.usesLegacyRendering, self.settings.menuBarIconStyle == .iconAndPercent else {
+            return false
+        }
+        let now = Date()
+        let data = self.store.menuBarLayoutRenderData(
+            provider: provider,
+            snapshot: entry.snapshot,
+            iconKey: "\(provider.rawValue):\(warningFlash ? "warning" : "normal")",
+            accountLabel: entry.badge.isEmpty ? nil : entry.badge,
+            costs: self.menuBarLayoutCosts(provider: provider, now: now),
+            now: now)
+        let icon = self.brandIcon(provider).map { warningFlash ? Self.quotaWarningFlashImage(base: $0) : $0 }
+        let rendered = self.menuBarLayoutRenderer.render(
+            layout: Self.accountStatusItemLayout(resolution.layout, showsBadge: !entry.badge.isEmpty),
+            data: data,
+            icon: icon,
+            options: self.menuBarLayoutRenderOptions(for: provider, button: button, now: now))
+        statusItem.length = Self.applyMenuBarLayoutContent(rendered, for: button, gap: self.settings.menuBarLayoutGap)
+        return true
+    }
+
+    /// The badge rides in an account-label token right after the icon, unless the layout already has one.
+    static func accountStatusItemLayout(_ layout: MenuBarLayout, showsBadge: Bool) -> MenuBarLayout {
+        guard showsBadge, var firstLine = layout.lines.first, !firstLine.contains(.accountLabel) else { return layout }
+        let index = firstLine.firstIndex(of: .icon).map { $0 + 1 } ?? 0
+        firstLine.insert(.accountLabel, at: index)
+        return MenuBarLayout(lines: [firstLine] + layout.lines.dropFirst())
     }
 }

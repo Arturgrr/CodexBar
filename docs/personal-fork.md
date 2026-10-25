@@ -64,6 +64,7 @@ one account per profile with a `claude-profile:` token:
 
 Menu → **Subscriptions → One icon per account**. In split (non-merged) icon mode, a provider with two or more
 accounts shows one menu bar item per enabled account instead of its single item. Each item shows that account's usage
+(through the provider's menu bar layout, e.g. its session percent)
 with a one-letter badge (the label's initial, or an ordinal when Hide Personal Info is on; omitted when it is the
 provider's only visible account), and its menu shows only that account's card. Every account is refreshed while
 the option is on.

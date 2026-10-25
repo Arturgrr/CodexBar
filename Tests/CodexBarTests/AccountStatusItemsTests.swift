@@ -152,6 +152,20 @@ struct AccountStatusItemsTests {
     }
 
     @Test
+    func `account items reuse the provider layout with the badge after the icon`() {
+        let session = MenuBarLayout(lines: [[.icon, .percent(window: .session)]])
+        #expect(StatusItemController.accountStatusItemLayout(session, showsBadge: true).lines
+            == [[.icon, .accountLabel, .percent(window: .session)]])
+        #expect(StatusItemController.accountStatusItemLayout(session, showsBadge: false) == session)
+
+        let labeled = MenuBarLayout(lines: [[.accountLabel, .icon]])
+        #expect(StatusItemController.accountStatusItemLayout(labeled, showsBadge: true) == labeled)
+        let iconless = MenuBarLayout(lines: [[.percent(window: .session)]])
+        #expect(StatusItemController.accountStatusItemLayout(iconless, showsBadge: true).lines
+            == [[.accountLabel, .percent(window: .session)]])
+    }
+
+    @Test
     func `account badges use the label's uppercased initial`() {
         #expect(AccountStatusItemEntry.badge(for: "work@example.com", ordinal: 2, hidePersonalInfo: false) == "W")
         #expect(AccountStatusItemEntry.badge(for: " pessoal", ordinal: 1, hidePersonalInfo: false) == "P")

@@ -169,7 +169,7 @@ extension StatusItemController {
             options: self.menuBarLayoutRenderOptions(for: provider, button: button, now: Date()))
     }
 
-    private func menuBarLayoutRenderOptions(
+    func menuBarLayoutRenderOptions(
         for provider: UsageProvider,
         button: NSButton?,
         now: Date,
