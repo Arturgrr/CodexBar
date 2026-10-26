@@ -85,7 +85,9 @@ public enum ClaudeProviderDescriptor {
             case .adminAPIKey: .api
             case .oauth: .oauth
             case .webCookie: .web
-            case .none, .configDirectory: base
+            // Explicit CLI mode, unlike Auto, may refresh in the background; profiles never use OAuth.
+            case .configDirectory: .cli
+            case .none: base
             }
         })
 
@@ -132,7 +134,8 @@ public enum ClaudeProviderDescriptor {
                     case .adminAPIKey: .api
                     case .oauth: .oauth
                     case .webCookie: .web
-                    case .none, .configDirectory: .auto
+                    case .configDirectory: .cli
+                    case .none: .auto
                     }
                 } else if routing.adminAPIKey != nil {
                     .api
@@ -321,13 +324,10 @@ public enum ClaudeProviderDescriptor {
     private static func resolveStrategies(context: ProviderFetchContext) async -> [any ProviderFetchStrategy] {
         // An explicitly selected account is the credential authority for this fetch. The global
         // source only controls ambient-account routing and must not redirect a selected account.
-        // A default-profile account is the ambient account, so it keeps ambient routing.
-        let profileAccountMarker = context.env[ClaudeCredentialRouting.profileAccountEnvironmentKey]
-        if context.selectedTokenAccountID != nil,
-           profileAccountMarker != ClaudeCredentialRouting.defaultProfileAccountMarker
-        {
-            if profileAccountMarker == ClaudeCredentialRouting.customProfileAccountMarker {
-                // Claude Code owns the custom profile's Keychain item; only its own CLI reads it.
+        if context.selectedTokenAccountID != nil {
+            if context.env[ClaudeCredentialRouting.profileAccountEnvironmentKey] != nil {
+                // Claude Code owns each profile's Keychain item and rotates it; only its own CLI reads it,
+                // so a rotation never leaves the account waiting for a manual Keychain re-grant.
                 return [ClaudeCLIFetchStrategy(
                     useWebExtras: false,
                     includePrepaidBalance: false,

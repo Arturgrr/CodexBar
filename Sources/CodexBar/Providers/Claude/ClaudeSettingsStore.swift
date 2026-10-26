@@ -161,7 +161,9 @@ extension SettingsStore {
             .api
         case .webCookie:
             .web
-        case .none, .configDirectory:
+        case .configDirectory:
+            .cli
+        case .none:
             .auto
         }
     }

@@ -10,8 +10,8 @@ public enum ClaudeCredentialRouting: Sendable, Equatable {
     case configDirectory(String)
 
     public static let configDirectoryTokenPrefix = "claude-profile:"
-    /// Set by the selected profile account's environment so strategy resolution can tell the default profile
-    /// (ambient routing) from a custom one (CLI only) without seeing the token.
+    /// Set by the selected profile account's environment so strategy resolution can route it to that
+    /// profile's own CLI without seeing the token. The value records whether `CLAUDE_CONFIG_DIR` was set.
     public static let profileAccountEnvironmentKey = "CODEXBAR_CLAUDE_PROFILE_ACCOUNT"
     public static let defaultProfileAccountMarker = "default"
     public static let customProfileAccountMarker = "custom"

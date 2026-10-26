@@ -25,16 +25,20 @@ struct ClaudeProfileAccountTests {
             selectedAccount: self.account(token: token))
     }
 
-    private static func strategyIDs(env: [String: String], selectedAccount: Bool = true) async -> [String] {
+    private static func context(
+        env: [String: String],
+        sourceMode: ProviderSourceMode = .auto,
+        selectedAccount: Bool = true) -> ProviderFetchContext
+    {
         let browserDetection = BrowserDetection(cacheTTL: 0)
         let settings = ProviderSettingsSnapshot.make(claude: .init(
             usageDataSource: .auto,
             webExtrasEnabled: false,
             cookieSource: .off,
             manualCookieHeader: nil))
-        let context = ProviderFetchContext(
+        return ProviderFetchContext(
             runtime: .app,
-            sourceMode: .auto,
+            sourceMode: sourceMode,
             includeCredits: false,
             webTimeout: 1,
             webDebugDumpHTML: false,
@@ -45,6 +49,10 @@ struct ClaudeProfileAccountTests {
             claudeFetcher: ClaudeUsageFetcher(browserDetection: browserDetection),
             browserDetection: browserDetection,
             selectedTokenAccountID: selectedAccount ? UUID() : nil)
+    }
+
+    private static func strategyIDs(env: [String: String], selectedAccount: Bool = true) async -> [String] {
+        let context = self.context(env: env, selectedAccount: selectedAccount)
         let descriptor = ProviderDescriptorRegistry.descriptor(for: .claude)
         return await descriptor.fetchPlan.pipeline.resolveStrategies(context).map(\.id)
     }
@@ -143,16 +151,53 @@ struct ClaudeProfileAccountTests {
     }
 
     @Test
-    func `default profile account keeps ambient routing`() async {
-        let env = [
+    func `default profile account also fetches only through its own CLI`() async {
+        let ids = await Self.strategyIDs(env: [
             "HOME": Self.home,
             "CLAUDE_CLI_PATH": "/usr/bin/true",
             ClaudeCredentialRouting.profileAccountEnvironmentKey: ClaudeCredentialRouting.defaultProfileAccountMarker,
-        ]
-        let ambient = await Self.strategyIDs(env: env, selectedAccount: false)
+        ])
 
-        #expect(await Self.strategyIDs(env: env) == ambient)
-        #expect(!ambient.isEmpty)
+        #expect(ids == ["claude.cli"])
+    }
+
+    @Test
+    func `profile accounts select explicit CLI mode`() throws {
+        let credentials = try #require(ProviderDescriptorRegistry.descriptor(for: .claude).credentials)
+        for token in ["claude-profile:~/.claude", "claude-profile:~/.claude-work"] {
+            #expect(credentials.selectedAccountSourceMode(
+                base: .auto,
+                account: Self.account(token: token),
+                config: nil) == .cli)
+        }
+        #expect(credentials.selectedAccountSourceMode(
+            base: .auto,
+            account: Self.account(token: "sk-ant-session-account"),
+            config: nil) == .web)
+    }
+
+    @Test
+    func `profile CLI can refresh in the background`() async {
+        let context = Self.context(
+            env: [
+                "HOME": Self.home,
+                "CLAUDE_CLI_PATH": "/usr/bin/true",
+                ClaudeConfigPaths.configDirectoryEnvironmentKey: "/Users/example/.claude-work",
+                ClaudeCredentialRouting.profileAccountEnvironmentKey: ClaudeCredentialRouting
+                    .customProfileAccountMarker,
+            ],
+            sourceMode: .cli)
+        let strategy = ClaudeCLIFetchStrategy(
+            useWebExtras: false,
+            includePrepaidBalance: false,
+            manualCookieHeader: nil,
+            browserDetection: context.browserDetection,
+            hasWebFallback: false)
+
+        let isAvailable = await ProviderInteractionContext.$current.withValue(.background) {
+            await strategy.isAvailable(context)
+        }
+        #expect(isAvailable)
     }
 
     @Test

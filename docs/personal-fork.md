@@ -52,10 +52,12 @@ one account per profile with a `claude-profile:` token:
 | Personal | `claude-profile:~/.claude` |
 | Work | `claude-profile:~/.claude-work` |
 
-- The default `~/.claude` profile keeps the ambient routing (OAuth → CLI), exactly like no account.
-- Any other profile is fetched only through its own `claude` CLI with `CLAUDE_CONFIG_DIR` set. Claude Code reads its
-  own Keychain item; CodexBar never reads that profile's credentials. Like other background CLI probes, the first
-  fetch needs a manual **Refresh**, and background probes run at most every 15 minutes per profile.
+- Every profile account, including the default `~/.claude`, is fetched only through its own `claude` CLI in explicit
+  CLI mode (`CLAUDE_CONFIG_DIR` is set for non-default profiles). Claude Code reads and rotates its own Keychain
+  item; CodexBar never reads profile credentials, so a token rotation never needs a Keychain re-grant.
+- Explicit CLI mode refreshes in the background: each profile's CLI is launched at most every 15 minutes, and the
+  last result is reused in between. Cards show "Limited usage detail" because the CLI reports quota percentages
+  without OAuth-only extras such as extra usage spend or reset credits.
 - Profile accounts never import browser cookies, so a browser session cannot be attributed to the wrong account.
 - Local cost history of a custom profile scans only that profile's `projects` directory.
 - Relative paths are rejected; use `~/…` or an absolute path.
